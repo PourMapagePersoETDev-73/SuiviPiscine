@@ -1,0 +1,6 @@
+{
+  "name": "Limpide — Suivi Piscine & Lecture Bandelette",
+  "description": "Application de suivi d'eau de piscine (pH, alcalinité TAC, chlore, stabilisant), gestion des produits (chlore choc, désalgine, pH-) et lecture optique de bandelettes par caméra avec étalonnage sur la boîte.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

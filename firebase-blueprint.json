@@ -1,0 +1,336 @@
+{
+  "entities": {
+    "Pool": {
+      "title": "Pool",
+      "description": "Configuration partagée d'une piscine (volume 48 m3 par défaut, revêtement, traitement, température) et liste bornée des membres autorisés.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Nom de la piscine"
+        },
+        "volumeM3": {
+          "type": "number",
+          "description": "Volume du bassin en mètres cubes (48 par défaut)"
+        },
+        "coating": {
+          "type": "string",
+          "enum": ["liner", "coque", "carrelage", "beton"],
+          "description": "Type de revêtement"
+        },
+        "disinfectant": {
+          "type": "string",
+          "enum": ["chlore", "sel", "brome"],
+          "description": "Traitement désinfectant principal"
+        },
+        "temperatureC": {
+          "type": "number",
+          "description": "Dernière température de l'eau en °C"
+        },
+        "visualState": {
+          "type": "string",
+          "enum": ["limpide", "trouble", "verte"],
+          "description": "Aspect visuel actuel de l'eau"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "UID du créateur du bassin"
+        },
+        "memberIds": {
+          "type": "array",
+          "description": "Liste bornée (max 10) des UIDs des membres ayant accès au bassin"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date de création serveur"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date de mise à jour serveur"
+        }
+      },
+      "required": [
+        "name",
+        "volumeM3",
+        "coating",
+        "disinfectant",
+        "temperatureC",
+        "visualState",
+        "ownerId",
+        "memberIds",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WaterMeasurement": {
+      "title": "WaterMeasurement",
+      "description": "Relevé d'analyse d'eau (caméra AquaChek ou saisie manuelle) partagé entre les membres du bassin.",
+      "type": "object",
+      "properties": {
+        "poolId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "memberIds": {
+          "type": "array",
+          "description": "UIDs des membres autorisés à lire ce relevé"
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 40
+        },
+        "source": {
+          "type": "string",
+          "enum": ["camera", "manuel"]
+        },
+        "stripProfile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "temperature": {
+          "type": "number"
+        },
+        "values": {
+          "type": "object"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "poolId",
+        "authorId",
+        "authorName",
+        "memberIds",
+        "timestamp",
+        "source",
+        "values",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PoolProduct": {
+      "title": "PoolProduct",
+      "description": "Produit chimique en stock pour le bassin partagé.",
+      "type": "object",
+      "properties": {
+        "poolId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberIds": {
+          "type": "array"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "brand": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "chlore_lent",
+            "chlore_choc",
+            "desalgine",
+            "ph_moins",
+            "ph_plus",
+            "tac_plus",
+            "floculant",
+            "brome",
+            "autre"
+          ]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "maxQuantity": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["kg", "L", "galets", "pastilles"]
+        },
+        "lowThreshold": {
+          "type": "number"
+        },
+        "dosageGuide": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "poolId",
+        "authorId",
+        "memberIds",
+        "name",
+        "category",
+        "quantity",
+        "maxQuantity",
+        "unit",
+        "lowThreshold",
+        "dosageGuide",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TreatmentLogEntry": {
+      "title": "TreatmentLogEntry",
+      "description": "Apport de produit enregistré dans le journal partagé (ex. 1 galet de chlore lent).",
+      "type": "object",
+      "properties": {
+        "poolId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "memberIds": {
+          "type": "array"
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 40
+        },
+        "productId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "productName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "chlore_lent",
+            "chlore_choc",
+            "desalgine",
+            "ph_moins",
+            "ph_plus",
+            "tac_plus",
+            "floculant",
+            "brome",
+            "autre"
+          ]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "poolId",
+        "authorId",
+        "authorName",
+        "memberIds",
+        "timestamp",
+        "productName",
+        "category",
+        "amount",
+        "unit",
+        "reason",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/pools/{poolId}": {
+      "schema": { "$ref": "#/entities/Pool" },
+      "description": "Configuration partagée de la piscine et liste des membres autorisés (max 10)."
+    },
+    "/pools/{poolId}/measurements/{measurementId}": {
+      "schema": { "$ref": "#/entities/WaterMeasurement" },
+      "description": "Analyses d'eau (AquaChek caméra ou saisie manuelle) partagées sur le bassin."
+    },
+    "/pools/{poolId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/PoolProduct" },
+      "description": "Inventaire des produits de traitement partagé sur le bassin."
+    },
+    "/pools/{poolId}/treatments/{treatmentId}": {
+      "schema": { "$ref": "#/entities/TreatmentLogEntry" },
+      "description": "Historique partagé des ajouts de produits (galets, pH-, désalgine...)."
+    }
+  }
+}

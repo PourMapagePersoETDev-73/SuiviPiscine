@@ -1,0 +1,325 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global hardened primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidMemberIds(listData) {
+      return listData is list
+        && listData.size() >= 1
+        && listData.size() <= 10
+        && listData[0] is string
+        && listData[0].size() >= 1
+        && listData[0].size() <= 128;
+    }
+
+    function isPoolMember(poolId) {
+      return isSignedIn()
+        && isVerified()
+        && exists(/databases/$(database)/documents/pools/$(poolId))
+        && request.auth.uid in get(/databases/$(database)/documents/pools/$(poolId)).data.memberIds;
+    }
+
+    function poolMembers(poolId) {
+      return get(/databases/$(database)/documents/pools/$(poolId)).data.memberIds;
+    }
+
+    // Validation Blueprints (no existing() or diff() inside)
+    function isValidPool(data) {
+      return data.keys().hasAll([
+          'name', 'volumeM3', 'coating', 'disinfectant',
+          'temperatureC', 'visualState', 'ownerId', 'memberIds',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'name', 'volumeM3', 'coating', 'disinfectant',
+          'temperatureC', 'visualState', 'ownerId', 'memberIds',
+          'createdAt', 'updatedAt'
+        ])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.volumeM3 is number && data.volumeM3 >= 1 && data.volumeM3 <= 500
+        && data.coating in ['liner', 'coque', 'carrelage', 'beton']
+        && data.disinfectant in ['chlore', 'sel', 'brome']
+        && data.temperatureC is number && data.temperatureC >= 0 && data.temperatureC <= 45
+        && data.visualState in ['limpide', 'trouble', 'verte']
+        && isValidId(data.ownerId)
+        && isValidMemberIds(data.memberIds)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(cat) {
+      return cat in [
+        'chlore_lent', 'chlore_choc', 'desalgine',
+        'ph_moins', 'ph_plus', 'tac_plus',
+        'floculant', 'brome', 'autre'
+      ];
+    }
+
+    function isValidMeasurement(data) {
+      return data.keys().hasAll([
+          'poolId', 'authorId', 'authorName', 'memberIds',
+          'timestamp', 'source', 'values', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'poolId', 'authorId', 'authorName', 'memberIds',
+          'timestamp', 'source', 'stripProfile', 'temperature',
+          'values', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.poolId)
+        && isValidId(data.authorId)
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
+        && isValidMemberIds(data.memberIds)
+        && data.timestamp is string && data.timestamp.size() >= 10 && data.timestamp.size() <= 40
+        && data.source in ['camera', 'manuel']
+        && (!('stripProfile' in data) || (data.stripProfile is string && data.stripProfile.size() >= 1 && data.stripProfile.size() <= 40))
+        && (!('temperature' in data) || (data.temperature is number && data.temperature >= 0 && data.temperature <= 45))
+        && data.values is map
+        && data.values.keys().hasOnly([
+          'freeChlorine', 'totalChlorine', 'ph', 'alkalinity',
+          'totalHardness', 'stabilizer', 'bromine'
+        ])
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'poolId', 'authorId', 'memberIds', 'name',
+          'category', 'quantity', 'maxQuantity', 'unit',
+          'lowThreshold', 'dosageGuide', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'poolId', 'authorId', 'memberIds', 'name', 'brand',
+          'category', 'quantity', 'maxQuantity', 'unit',
+          'lowThreshold', 'dosageGuide', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.poolId)
+        && isValidId(data.authorId)
+        && isValidMemberIds(data.memberIds)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && (!('brand' in data) || (data.brand is string && data.brand.size() <= 80))
+        && isValidCategory(data.category)
+        && data.quantity is number && data.quantity >= 0 && data.quantity <= 10000
+        && data.maxQuantity is number && data.maxQuantity >= 0.1 && data.maxQuantity <= 10000
+        && data.unit in ['kg', 'L', 'galets', 'pastilles']
+        && data.lowThreshold is number && data.lowThreshold >= 0 && data.lowThreshold <= 1000
+        && data.dosageGuide is string && data.dosageGuide.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTreatment(data) {
+      return data.keys().hasAll([
+          'poolId', 'authorId', 'authorName', 'memberIds',
+          'timestamp', 'productName', 'category', 'amount',
+          'unit', 'reason', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'poolId', 'authorId', 'authorName', 'memberIds',
+          'timestamp', 'productId', 'productName', 'category',
+          'amount', 'unit', 'reason', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.poolId)
+        && isValidId(data.authorId)
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
+        && isValidMemberIds(data.memberIds)
+        && data.timestamp is string && data.timestamp.size() >= 10 && data.timestamp.size() <= 40
+        && (!('productId' in data) || isValidId(data.productId))
+        && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 100
+        && isValidCategory(data.category)
+        && data.amount is number && data.amount > 0 && data.amount <= 10000
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 30
+        && data.reason is string && data.reason.size() >= 1 && data.reason.size() <= 240
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /pools/{poolId} {
+      allow get: if isValidId(poolId)
+        && isSignedIn()
+        && isVerified()
+        && request.auth.uid in existing().memberIds;
+
+      allow list: if isSignedIn()
+        && isVerified()
+        && request.auth.uid in resource.data.memberIds;
+
+      allow create: if isValidId(poolId)
+        && isSignedIn()
+        && isVerified()
+        && isValidPool(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().memberIds.size() == 1
+        && incoming().memberIds[0] == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(poolId)
+        && isSignedIn()
+        && isVerified()
+        && isValidPool(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Member updates pool configuration or water state
+          (
+            request.auth.uid in existing().memberIds
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'volumeM3', 'coating', 'disinfectant',
+              'temperatureC', 'visualState', 'updatedAt'
+            ])
+          )
+          // Action 2: Invited user joins the pool using exact poolId code
+          || (
+            !(request.auth.uid in existing().memberIds)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds', 'updatedAt'])
+            && incoming().memberIds.size() == existing().memberIds.size() + 1
+            && incoming().memberIds.hasAll(existing().memberIds)
+            && request.auth.uid in incoming().memberIds
+          )
+        );
+
+      allow delete: if isValidId(poolId)
+        && isSignedIn()
+        && isVerified()
+        && existing().ownerId == request.auth.uid;
+
+      match /measurements/{measurementId} {
+        allow get: if isValidId(poolId) && isValidId(measurementId) && isPoolMember(poolId);
+
+        allow list: if isSignedIn()
+          && isVerified()
+          && request.auth.uid in resource.data.memberIds;
+
+        allow create: if isValidId(poolId)
+          && isValidId(measurementId)
+          && isSignedIn()
+          && isVerified()
+          && isValidMeasurement(incoming())
+          && incoming().poolId == poolId
+          && incoming().authorId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && incoming().memberIds == poolMembers(poolId);
+
+        allow update: if isValidId(poolId)
+          && isValidId(measurementId)
+          && isSignedIn()
+          && isVerified()
+          && isValidMeasurement(incoming())
+          && incoming().poolId == existing().poolId
+          && incoming().authorId == existing().authorId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds', 'updatedAt'])
+          && incoming().memberIds == poolMembers(poolId);
+
+        allow delete: if isValidId(poolId) && isValidId(measurementId) && isPoolMember(poolId);
+      }
+
+      match /products/{productId} {
+        allow get: if isValidId(poolId) && isValidId(productId) && isPoolMember(poolId);
+
+        allow list: if isSignedIn()
+          && isVerified()
+          && request.auth.uid in resource.data.memberIds;
+
+        allow create: if isValidId(poolId)
+          && isValidId(productId)
+          && isSignedIn()
+          && isVerified()
+          && isValidProduct(incoming())
+          && incoming().poolId == poolId
+          && incoming().authorId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && incoming().memberIds == poolMembers(poolId);
+
+        allow update: if isValidId(poolId)
+          && isValidId(productId)
+          && isSignedIn()
+          && isVerified()
+          && isValidProduct(incoming())
+          && incoming().poolId == existing().poolId
+          && incoming().authorId == existing().authorId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && (
+            incoming().diff(existing()).affectedKeys().hasOnly(['quantity', 'maxQuantity', 'updatedAt'])
+            || (
+              incoming().diff(existing()).affectedKeys().hasOnly(['memberIds', 'updatedAt'])
+              && incoming().memberIds == poolMembers(poolId)
+            )
+          );
+
+        allow delete: if isValidId(poolId) && isValidId(productId) && isPoolMember(poolId);
+      }
+
+      match /treatments/{treatmentId} {
+        allow get: if isValidId(poolId) && isValidId(treatmentId) && isPoolMember(poolId);
+
+        allow list: if isSignedIn()
+          && isVerified()
+          && request.auth.uid in resource.data.memberIds;
+
+        allow create: if isValidId(poolId)
+          && isValidId(treatmentId)
+          && isSignedIn()
+          && isVerified()
+          && isValidTreatment(incoming())
+          && incoming().poolId == poolId
+          && incoming().authorId == request.auth.uid
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && incoming().memberIds == poolMembers(poolId);
+
+        allow update: if isValidId(poolId)
+          && isValidId(treatmentId)
+          && isSignedIn()
+          && isVerified()
+          && isValidTreatment(incoming())
+          && incoming().poolId == existing().poolId
+          && incoming().authorId == existing().authorId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && isPoolMember(poolId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['memberIds', 'updatedAt'])
+          && incoming().memberIds == poolMembers(poolId);
+
+        allow delete: if isValidId(poolId) && isValidId(treatmentId) && isPoolMember(poolId);
+      }
+    }
+  }
+}
